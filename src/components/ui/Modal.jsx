@@ -1,26 +1,55 @@
-import * as React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import React, { useEffect } from "react";
 import { X } from "lucide-react";
-import { cn } from "../../lib/utils";
 
-const Modal = ({ isOpen, onClose, title, children }) => (
-  <DialogPrimitive.Root open={isOpen} onOpenChange={onClose}>
-    <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-      <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg dark:bg-gray-900 dark:border-gray-800">
-        <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
-            {title}
-          </DialogPrimitive.Title>
+const Modal = ({ isOpen, onClose, title, children, size = "medium" }) => {
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const sizes = {
+    small: "max-w-sm",
+    medium: "max-w-md",
+    large: "max-w-2xl",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-25 transition-opacity"
+          onClick={onClose}
+        />
+        <div
+          className={`relative bg-white rounded-lg shadow-xl ${sizes[size]} w-full`}
+        >
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="p-6">{children}</div>
         </div>
-        {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
-      </DialogPrimitive.Content>
-    </DialogPrimitive.Portal>
-  </DialogPrimitive.Root>
-);
+      </div>
+    </div>
+  );
+};
 
-export { Modal };
+export default Modal;

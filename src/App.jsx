@@ -1,28 +1,37 @@
-import { Routes, Route } from "react-router-dom";
-import RootLayout from "./layouts/RootLayout";
-import Dashboard from "./pages/Dashboard";
-import SignIn from "./pages/SignIn";
-import SignUp from "./pages/SignUp";
-import ProtectedRoute from "./components/ProtectedRoute";
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { ToastProvider } from "@/contexts/ToastContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import AuthPage from "@/pages/AuthPage";
+import Dashboard from "@/pages/Dashboard";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
-function App() {
+const App = () => {
   return (
-    <Routes>
-      <Route path="/signin" element={<SignIn />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <RootLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        {/* Add other protected routes here */}
-      </Route>
-    </Routes>
+    <Router>
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
+    </Router>
   );
-}
+};
 
 export default App;

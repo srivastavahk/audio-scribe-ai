@@ -1,141 +1,163 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
-import { getNotes, searchNotes } from "../api";
-
-import { Button } from "../components/ui/Button";
-import NoteCard from "../components/NoteCard";
-import NoteModal from "../components/NoteModal";
-import ConfirmationDialog from "../components/ConfirmationDialog";
-import { Spinner } from "../components/Spinner";
+import React, { useState, useEffect } from "react";
+import { api } from "@/services/api";
+import { useToast } from "@/contexts/ToastContext";
+import { useApi } from "@/hooks/useApi";
+import Header from "@/components/layout/Header";
+import NoteList from "@/components/notes/NoteList";
+import NoteForm from "@/components/forms/NoteForm";
+import Modal from "@/components/ui/Modal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 const Dashboard = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [selectedNote, setSelectedNote] = useState(null);
-  const [noteToDelete, setNoteToDelete] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  const fetchNotes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getNotes();
-      setNotes(data);
-    } catch (error) {
-      toast.error("Failed to fetch notes:", error.message);
-    } finally {
-      setLoading(false);
-      setIsSearching(false);
-    }
-  }, []);
+  const { addToast } = useToast();
+  const { loading: apiLoading, execute } = useApi();
 
   useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
+    loadNotes();
+  }, []);
 
-  const handleSearch = async (query) => {
-    if (!query) {
-      fetchNotes();
+  const loadNotes = async () => {
+    await execute(() => api.getNotes(), {
+      onSuccess: (data) => {
+        setNotes(data);
+        setLoading(false);
+      },
+      onError: () => setLoading(false),
+      errorMessage: "Failed to load notes",
+    });
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      loadNotes();
       return;
     }
-    setLoading(true);
+
     setIsSearching(true);
-    try {
-      const results = await searchNotes(query);
-      setNotes(results);
-      toast.success(`Found ${results.length} notes for "${query}"`);
-    } catch (error) {
-      toast.error(`Search failed: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
+    await execute(() => api.searchNotes(searchQuery), {
+      onSuccess: setNotes,
+      onError: () => setIsSearching(false),
+      errorMessage: "Search failed",
+    });
+    setIsSearching(false);
   };
 
-  const handleOpenCreateModal = () => {
-    setSelectedNote(null);
-    setIsModalOpen(true);
+  const clearSearch = () => {
+    setSearchQuery("");
+    loadNotes();
   };
 
-  const handleOpenEditModal = (note) => {
-    setSelectedNote(note);
-    setIsModalOpen(true);
+  const handleCreateNote = async (noteData) => {
+    await execute(() => api.createNote(noteData), {
+      onSuccess: (newNote) => {
+        setNotes([newNote, ...notes]);
+        setShowNoteForm(false);
+      },
+      successMessage: "Note created successfully",
+      errorMessage: "Failed to create note",
+    });
   };
 
-  const handleOpenDeleteConfirm = (noteId) => {
-    setNoteToDelete(noteId);
-    setIsConfirmOpen(true);
+  const handleUpdateNote = async (noteData) => {
+    await execute(() => api.updateNote(editingNote.id, noteData), {
+      onSuccess: () => {
+        setNotes(
+          notes.map((note) =>
+            note.id === editingNote.id
+              ? {
+                  ...editingNote,
+                  ...noteData,
+                  updated_at: new Date().toISOString(),
+                }
+              : note,
+          ),
+        );
+        setEditingNote(null);
+      },
+      successMessage: "Note updated successfully",
+      errorMessage: "Failed to update note",
+    });
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedNote(null);
+  const handleDeleteNote = async (noteId) => {
+    await execute(() => api.deleteNote(noteId), {
+      onSuccess: () => {
+        setNotes(notes.filter((note) => note.id !== noteId));
+        setDeleteConfirm(null);
+      },
+      successMessage: "Note deleted successfully",
+      errorMessage: "Failed to delete note",
+    });
   };
-
-  const handleSuccess = () => {
-    fetchNotes();
-    closeModal();
-  };
-
-  // Expose search handlers to the Header via context or state management library in a larger app
-  // For this scope, we'll assume the SearchBar is part of this page structure.
-  // In a real app, `handleSearch` and `fetchNotes` would be lifted to a parent or context.
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">My Notes</h1>
-        <Button onClick={handleOpenCreateModal}>
-          <Plus className="mr-2 h-4 w-4" /> New Note
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center mt-16">
-          <Spinner size="lg" />
-        </div>
-      ) : notes.length === 0 ? (
-        <div className="text-center mt-16 bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm">
-          <h2 className="text-xl font-semibold">
-            {isSearching ? "No Search Results" : "No Notes Yet"}
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            {isSearching
-              ? "Try a different search term."
-              : "Click 'New Note' to get started."}
-          </p>
-          {isSearching && (
-            <Button onClick={fetchNotes} className="mt-4">
-              Clear Search
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {notes.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              onEdit={() => handleOpenEditModal(note)}
-              onDelete={() => handleOpenDeleteConfirm(note.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      <NoteModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        note={selectedNote}
-        onSuccess={handleSuccess}
+    <div className="min-h-screen bg-gray-50">
+      <Header
+        searchQuery={searchQuery}
+        onSearchChange={(e) => setSearchQuery(e.target.value)}
+        onSearchSubmit={handleSearch}
+        onSearchClear={clearSearch}
+        onCreateNote={() => setShowNoteForm(true)}
+        isSearching={isSearching}
       />
 
-      <ConfirmationDialog
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        noteId={noteToDelete}
-        onSuccess={fetchNotes}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {searchQuery ? `Search Results for "${searchQuery}"` : "Your Notes"}
+          </h2>
+          <p className="text-gray-600 mt-1">
+            {notes.length} {notes.length === 1 ? "note" : "notes"} found
+          </p>
+        </div>
+
+        <NoteList
+          notes={notes}
+          loading={loading}
+          onEdit={setEditingNote}
+          onDelete={(id) => setDeleteConfirm(id)}
+          onCreateNew={() => setShowNoteForm(true)}
+          searchQuery={searchQuery}
+        />
+      </main>
+
+      {/* Note Form Modal */}
+      <Modal
+        isOpen={showNoteForm || !!editingNote}
+        onClose={() => {
+          setShowNoteForm(false);
+          setEditingNote(null);
+        }}
+        title={editingNote ? "Edit Note" : "Create New Note"}
+      >
+        <NoteForm
+          note={editingNote}
+          onSave={editingNote ? handleUpdateNote : handleCreateNote}
+          onCancel={() => {
+            setShowNoteForm(false);
+            setEditingNote(null);
+          }}
+          loading={apiLoading}
+        />
+      </Modal>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onConfirm={() => handleDeleteNote(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+        title="Delete Note"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        confirmText="Delete"
       />
     </div>
   );

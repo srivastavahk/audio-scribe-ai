@@ -1,22 +1,21 @@
-import * as React from "react";
-import { cn } from "../../lib/utils";
+import React from "react";
 
-const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+const Input = ({ label, error, className = "", ...props }) => {
   return (
-    <input
-      type={type}
-      className={cn(
-        "flex h-10 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        "dark:border-gray-700 dark:focus-visible:ring-indigo-400",
-        className,
+    <div className="space-y-1">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700">
+          {label}
+        </label>
       )}
-      ref={ref}
-      {...props}
-    />
+      <input
+        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+          ${error ? "border-red-300" : "border-gray-300"} ${className}`}
+        {...props}
+      />
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
   );
-});
-Input.displayName = "Input";
+};
 
-export { Input };
+export default Input;
