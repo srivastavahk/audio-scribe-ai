@@ -19,7 +19,9 @@ const Header = ({
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <FileText className="w-8 h-8 text-blue-600" />
-            <h1 className="ml-3 text-xl font-bold text-gray-900">NotesApp</h1>
+            <h1 className="ml-3 text-xl font-bold text-gray-900">
+              AudioScribeAI
+            </h1>
           </div>
 
           <div className="flex items-center gap-4">
